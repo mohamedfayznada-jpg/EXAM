@@ -25,7 +25,8 @@ create table if not exists public.exams (
 create table if not exists public.questions (
   id uuid primary key default gen_random_uuid(),
   exam_id uuid not null references public.exams(id) on delete cascade,
-  question_text text,\n  image_path text,
+  question_text text,
+  image_path text,
   points numeric(8,2) not null default 1 check (points > 0),
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
@@ -160,3 +161,110 @@ create policy "students view question images"
 on storage.objects for select
 to public
 using (bucket_id = 'question-images');
+
+
+-- Prevent authenticated clients (including students) from reading answer keys.
+-- Scoring is performed by the trusted RPC below.
+revoke select on public.question_options from authenticated;
+grant select (id, question_id, option_text, sort_order) on public.question_options to authenticated;
+
+-- Secure server-side submission/scoring.
+create or replace function public.submit_attempt(
+  p_exam_id uuid,
+  p_answers jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_attempt_id uuid;
+  v_total numeric := 0;
+  v_score numeric := 0;
+  v_percentage numeric := 0;
+  v_pass numeric;
+  v_passed boolean;
+  v_item jsonb;
+  v_question_id uuid;
+  v_option_id uuid;
+  v_points numeric;
+  v_correct boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if not exists (
+    select 1 from public.exams
+    where id = p_exam_id and is_published = true
+  ) then
+    raise exception 'Exam is not available';
+  end if;
+
+  select pass_percentage into v_pass
+  from public.exams where id = p_exam_id;
+
+  insert into public.attempts (exam_id, student_id, started_at)
+  values (p_exam_id, auth.uid(), now())
+  returning id into v_attempt_id;
+
+  for v_item in select * from jsonb_array_elements(coalesce(p_answers, '[]'::jsonb))
+  loop
+    v_question_id := (v_item->>'question_id')::uuid;
+    v_option_id := nullif(v_item->>'option_id','')::uuid;
+
+    select q.points, exists (
+      select 1
+      from public.question_options qo
+      where qo.id = v_option_id
+        and qo.question_id = q.id
+        and qo.is_correct = true
+    )
+    into v_points, v_correct
+    from public.questions q
+    where q.id = v_question_id
+      and q.exam_id = p_exam_id;
+
+    if v_points is null then
+      continue;
+    end if;
+
+    v_total := v_total + v_points;
+    if v_correct then
+      v_score := v_score + v_points;
+    end if;
+
+    insert into public.attempt_answers
+      (attempt_id, question_id, selected_option_id, is_correct, points_awarded)
+    values
+      (v_attempt_id, v_question_id, v_option_id, v_correct, case when v_correct then v_points else 0 end);
+  end loop;
+
+  if v_total > 0 then
+    v_percentage := round((v_score / v_total) * 100, 2);
+  end if;
+
+  v_passed := v_percentage >= v_pass;
+
+  update public.attempts
+  set submitted_at = now(),
+      score = v_score,
+      total_points = v_total,
+      percentage = v_percentage,
+      passed = v_passed
+  where id = v_attempt_id;
+
+  return jsonb_build_object(
+    'attempt_id', v_attempt_id,
+    'score', v_score,
+    'total_points', v_total,
+    'percentage', v_percentage,
+    'passed', v_passed,
+    'pass_percentage', v_pass
+  );
+end;
+$$;
+
+revoke all on function public.submit_attempt(uuid, jsonb) from public;
+grant execute on function public.submit_attempt(uuid, jsonb) to authenticated;
