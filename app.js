@@ -238,7 +238,14 @@ function adminLogin(){
     var r=await supabaseClient.rpc("admin_login",{p_username:username,p_password:password});
     if(r.error)return alert(r.error.message);
     if(!r.data||!r.data.ok)return alert("Invalid admin username or password.");
-   async function boot(){
+    var currentSession=(await supabaseClient.auth.getSession()).data.session;
+    if(!currentSession||!currentSession.user)return alert("Admin session could not be created.");
+    await enterCloudApp(currentSession.user);
+  };
+  document.getElementById("student").onclick=landing;
+}
+
+async function boot(){
   if(!supabaseClient){ landing(); return; }
   var r=await supabaseClient.auth.getSession();
   if(r.data && r.data.session && r.data.session.user){
