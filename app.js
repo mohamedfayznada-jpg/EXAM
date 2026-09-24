@@ -118,7 +118,9 @@ async function cloudProfile(user){
 
 async function cloudLoadExams(){
   if(!supabaseClient) return false;
-  var r=await supabaseClient.from("exams").select("id,title,category,duration_minutes,pass_percentage,questions(id,question_text,image_path,points,sort_order,question_options(id,option_text,sort_order))").eq("is_published",true).order("created_at",{ascending:true});
+  var q=supabaseClient.from("exams").select("id,title,category,duration_minutes,pass_percentage,is_published,questions(id,question_text,image_path,points,sort_order,question_options(id,option_text,sort_order))").order("created_at",{ascending:true});
+  if(!(state.user&&state.user.role==="admin")) q=q.eq("is_published",true);
+  var r=await q;
   if(r.error){
     console.warn("Cloud exams unavailable:",r.error);
     return false;
