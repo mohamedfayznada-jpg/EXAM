@@ -126,17 +126,7 @@
     timerId=setInterval(function(){a.left--;var c=document.getElementById("clock");if(c)c.textContent=fmtTime(a.left);if(a.left<=0){stopTimer();submitExam(true);}},1000);
   }
   function fmtTime(s){s=Math.max(0,s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
-  function confirmSubmit(){
-    var answered=currentAttempt.answers.filter(function(x){return x!==null;}).length;
-    var total=currentExam.questions.length;
-    var wrap=document.createElement("div");
-    wrap.id="confirmModal";
-    wrap.className="modal-backdrop";
-    wrap.innerHTML="<div class=\"modal card\"><div class=\"modal-icon\">➤</div><h2>Submit Exam?</h2><p>You have answered <b>"+answered+"</b> of <b>"+total+"</b> questions. Remaining questions will be marked as incorrect.</p><div class=\"modal-actions\"><button class=\"btn ghost\" id=\"cancelSubmit\">Cancel</button><button class=\"btn primary\" id=\"yesSubmit\">Submit</button></div></div>";
-    app.appendChild(wrap);
-    document.getElementById("cancelSubmit").onclick=function(){wrap.remove();};
-    document.getElementById("yesSubmit").onclick=function(){submitExam(false);};
-  }
+  function confirmSubmit(){ if(window.confirm("Submit Exam?")) submitExam(false); }
   function submitExam(auto){
     stopTimer();var e=currentExam,a=currentAttempt,score=0;
     e.questions.forEach(function(q,i){if(a.answers[i]===q.answer)score++;});
