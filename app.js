@@ -161,51 +161,37 @@ function authLanding(){
     <div class="login-visual">
       <div class="visual-badge">SMART ASSESSMENT</div>
       <h2>Evaluate knowledge.<br><span>Measure performance.</span></h2>
-      <p>Secure exams, question banks, student results and analytics powered by Supabase.</p>
+      <p>Simple student access. Enter your name once and continue.</p>
     </div>
     <div class="login-panel card">
       <div class="brand">EXAM<span>.</span></div>
-      <h1 id="authTitle">Student Login</h1>
-      <p class="muted" id="authSub">Sign in to continue to your assessments.</p>
-      <label class="field signup-only" style="display:none"><span>Full name</span><input id="authName" placeholder="e.g. Ahmed Mohamed"></label>
-      <label class="field"><span>Email</span><input id="authEmail" type="email" placeholder="student@example.com"></label>
-      <label class="field"><span>Password</span><input id="authPassword" type="password" placeholder="••••••••"></label>
-      <button class="btn primary full" id="authSubmit">Sign In</button>
-      <button class="text-btn" id="toggleSignup">Create student account</button>
+      <h1>Student Access</h1>
+      <p class="muted">Enter your name to start. No email or password required.</p>
+      <label class="field"><span>Student name</span><input id="studentName" placeholder="e.g. Mohamed Fayez"></label>
+      <button class="btn primary full" id="studentContinue">Enter Exam</button>
       <button class="text-btn" id="authAdmin">Admin login →</button>
-      <p class="login-note">Authentication and exam data are stored in Supabase.</p>
+      <p class="login-note">Your browser keeps your student session so you do not need to type your name every time.</p>
     </div>
   </div>`;
-  var signup=false;
-  function renderMode(){
-    document.getElementById("authTitle").textContent=signup?"Create Student Account":"Student Login";
-    document.getElementById("authSub").textContent=signup?"Create your account to access exams.":"Sign in to continue to your assessments.";
-    document.querySelector(".signup-only").style.display=signup?"block":"none";
-    document.getElementById("authSubmit").textContent=signup?"Create Account":"Sign In";
-    document.getElementById("toggleSignup").textContent=signup?"Already have an account? Sign in":"Create student account";
-  }
-  document.getElementById("toggleSignup").onclick=function(){signup=!signup;renderMode()};
-  document.getElementById("authAdmin").onclick=adminLogin;
-  document.getElementById("authSubmit").onclick=async function(){
-    var email=document.getElementById("authEmail").value.trim();
-    var password=document.getElementById("authPassword").value;
-    var name=document.getElementById("authName").value.trim();
-    if(!email||!password)return alert("Enter email and password.");
-    if(password.length<6)return alert("Password must be at least 6 characters.");
-    var r;
-    if(signup){
-      if(!name)return alert("Enter your full name.");
-      r=await supabaseClient.auth.signUp({email:email,password:password,options:{data:{full_name:name}}});
-      if(r.error)return alert(r.error.message);
-      if(r.data.session && r.data.user) await enterCloudApp(r.data.user);
-      else alert("Account created. Check your email to confirm the account, then sign in.");
+  document.getElementById("studentContinue").onclick=async function(){
+    var name=document.getElementById("studentName").value.trim();
+    if(!name)return alert("Enter your name.");
+    var r=await supabaseClient.auth.signInAnonymously();
+    if(r.error)return alert(r.error.message);
+    var user=r.data.user;
+    var profile=await cloudProfile(user);
+    if(!profile){
+      var ins=await supabaseClient.from("profiles").insert({id:user.id,full_name:name,role:"student"}).select("id,full_name,role").single();
+      profile=ins.data;
     }else{
-      r=await supabaseClient.auth.signInWithPassword({email:email,password:password});
-      if(r.error)return alert(r.error.message);
-      if(r.data.user) await enterCloudApp(r.data.user);
+      await supabaseClient.from("profiles").update({full_name:name,role:profile.role==="admin"?"admin":"student"}).eq("id",user.id);
     }
+    await enterCloudApp(user);
   };
+  document.getElementById("authAdmin").onclick=adminLogin;
 }
+
+function landing(){ authLanding(); }
 
 function landing(){ authLanding(); }
 
@@ -213,28 +199,24 @@ function adminLogin(){
   stop();
   app.innerHTML=`<div class="admin-login"><div class="admin-login-card card">
     <div class="brand">EXAM<span>.</span></div><div class="admin-mark">⚙</div>
-    <h1>Admin Panel</h1><p class="muted">Sign in with an authorized admin account.</p>
-    <label class="field"><span>Email</span><input id="ae" type="email" placeholder="admin@example.com"></label>
-    <label class="field"><span>Password</span><input id="ap" type="password" placeholder="••••••••"></label>
+    <h1>Admin Panel</h1><p class="muted">Simple admin access.</p>
+    <label class="field"><span>Username</span><input id="ae" autocomplete="username" value="eng.wael"></label>
+    <label class="field"><span>Password</span><input id="ap" type="password" autocomplete="current-password" placeholder="•••••"></label>
     <button class="btn primary full" id="sign">Sign In</button>
-    <button class="text-btn" id="student">← Student login</button>
+    <button class="text-btn" id="student">← Student access</button>
   </div></div>`;
   document.getElementById("sign").onclick=async function(){
-    var email=document.getElementById("ae").value.trim(),password=document.getElementById("ap").value;
-    if(!email||!password)return alert("Enter admin email and password.");
-    var r=await supabaseClient.auth.signInWithPassword({email:email,password:password});
-    if(r.error)return alert(r.error.message);
-    var profile=await cloudProfile(r.data.user);
-    if(!profile || profile.role!=="admin"){
-      await supabaseClient.auth.signOut();
-      return alert("This account is not authorized as an admin.");
+    var username=document.getElementById("ae").value.trim(),password=document.getElementById("ap").value;
+    if(!username||!password)return alert("Enter username and password.");
+    var session=(await supabaseClient.auth.getSession()).data.session;
+    if(!session){
+      var anon=await supabaseClient.auth.signInAnonymously();
+      if(anon.error)return alert(anon.error.message);
     }
-    await enterCloudApp(r.data.user);
-  };
-  document.getElementById("student").onclick=landing;
-}
-
-async function boot(){
+    var r=await supabaseClient.rpc("admin_login",{p_username:username,p_password:password});
+    if(r.error)return alert(r.error.message);
+    if(!r.data||!r.data.ok)return alert("Invalid admin username or password.");
+   async function boot(){
   if(!supabaseClient){ landing(); return; }
   var r=await supabaseClient.auth.getSession();
   if(r.data && r.data.session && r.data.session.user){
@@ -242,10 +224,9 @@ async function boot(){
   }else{
     landing();
   }
-  supabaseClient.auth.onAuthStateChange(function(event,session){
+  supabaseClient.auth.onAuthStateChange(function(event){
     if(event==="SIGNED_OUT") landing();
   });
 }
-
 boot();
 })();
