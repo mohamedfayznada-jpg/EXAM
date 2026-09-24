@@ -97,7 +97,29 @@ function questionEditor(examId){
 function questionsPage(){var rows=[];state.exams.forEach(function(e){e.questions.forEach(function(q,i){rows.push(`<tr><td>${q.image?'<span class="image-chip">🖼 Image</span> ':""}<b>${esc(q.text||"Image-based question")}</b><small>${esc(q.topic)}</small></td><td>${esc(e.title)}</td><td><button class="mini-btn" data-add="${e.id}">Add Question</button></td></tr>`)})});app.innerHTML=adminShell("questions",page("Question Bank","Central library of questions across all exams.",`<div class="card table-card"><div class="row"><h3>Questions</h3><button class="btn primary" id="addQuestion">+ Add Question</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Question</th><th>Exam</th><th>Action</th></tr></thead><tbody>${rows.join("")||"<tr><td colspan='3' class='muted'>No questions yet.</td></tr>"}</tbody></table></div></div>`));bindAdmin();document.getElementById("addQuestion").onclick=function(){questionEditor(state.exams[0]&&state.exams[0].id)};document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){questionEditor(b.dataset.add)}})}
 function studentsPage(){var names={};state.attempts.forEach(function(a){names[a.student]=(names[a.student]||[]).concat(a)});var rows=Object.keys(names).map(function(n){var a=names[n],avg=Math.round(a.reduce(function(s,x){return s+x.pct},0)/a.length);return `<tr><td><b>${esc(n)}</b></td><td>${a.length}</td><td>${avg}%</td><td>Student</td></tr>`}).join("");app.innerHTML=adminShell("students",page("Students","Monitor student participation and performance.",`<div class="card table-card"><h3>Students</h3><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Attempts</th><th>Average</th><th>Role</th></tr></thead><tbody>${rows||"<tr><td colspan='4' class='muted'>No students yet.</td></tr>"}</tbody></table></div></div>`));bindAdmin()}
 function resultsPage(){var n=state.attempts.length,pass=n?Math.round(state.attempts.filter(function(a){return a.passed}).length/n*100):0,avg=n?Math.round(state.attempts.reduce(function(s,a){return s+a.pct},0)/n):0;app.innerHTML=adminShell("results",page("Results Analytics","Performance trends across all assessments.",`<div class="kpi-grid"><div class="kpi card"><span>Total Attempts</span><b>${n}</b></div><div class="kpi card"><span>Pass Rate</span><b>${pass}%</b></div><div class="kpi card"><span>Average Score</span><b>${avg}%</b></div></div><div class="card table-card"><h3>All Results</h3><div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Status</th></tr></thead><tbody>${state.attempts.slice().reverse().map(function(a){return `<tr><td>${esc(a.student)}</td><td>${esc(a.exam)}</td><td>${a.pct}%</td><td><span class="badge ${a.passed?"pass":"fail"}">${a.passed?"PASS":"FAIL"}</span></td></tr>`}).join("")}</tbody></table></div></div>`));bindAdmin()}
-function settingsPage(){app.innerHTML=adminShell("settings",page("Settings","Application preferences and access controls.",`<div class="settings-grid"><div class="card"><h3>General</h3><label class="field"><span>Platform Name</span><input value="EXAM." disabled></label><label class="field"><span>Default Passing Score</span><input value="60%" disabled></label></div><div class="card"><h3>Data</h3><p class="muted">Demo data is stored locally in this browser.</p><button class="btn danger" id="reset">Reset Demo Data</button></div></div>`));bindAdmin();document.getElementById("reset").onclick=function(){state.attempts=[];save();settingsPage()}}
+function settingsPage(){
+  app.innerHTML=adminShell("settings",page("Settings","Application preferences and admin access.",`<div class="settings-grid">
+    <div class="card"><h3>General</h3><label class="field"><span>Platform Name</span><input value="EXAM." disabled></label><label class="field"><span>Default Passing Score</span><input value="60%" disabled></label></div>
+    <div class="card"><h3>Admin Password</h3>
+      <p class="muted">Change the password for <b>eng.wael</b>.</p>
+      <label class="field"><span>Current password</span><input id="oldAdminPass" type="password"></label>
+      <label class="field"><span>New password</span><input id="newAdminPass" type="password"></label>
+      <button class="btn primary" id="changeAdminPass">Change Password</button>
+    </div>
+  </div>`));
+  bindAdmin();
+  document.getElementById("changeAdminPass").onclick=async function(){
+    var oldP=document.getElementById("oldAdminPass").value,newP=document.getElementById("newAdminPass").value;
+    if(!oldP||!newP)return alert("Enter both passwords.");
+    var r=await supabaseClient.rpc("admin_change_password",{p_current_password:oldP,p_new_password:newP});
+    if(r.error)return alert(r.error.message);
+    if(!r.data||!r.data.ok)return alert("Current password is incorrect.");
+    alert("Admin password changed successfully.");
+    document.getElementById("oldAdminPass").value="";
+    document.getElementById("newAdminPass").value="";
+  };
+}
+
 var supabaseClient = null;
 try {
   if (window.supabase && window.EXAM_SUPABASE_CONFIG && window.EXAM_SUPABASE_CONFIG.url && window.EXAM_SUPABASE_CONFIG.anonKey) {
