@@ -129,7 +129,7 @@ async function cloudLoadExams(){
   state.exams=r.data.map(function(e){
     return {
       id:e.id,title:e.title,category:e.category,duration:Number(e.duration_minutes),
-      pass:Number(e.pass_percentage),description:"",
+      pass:Number(e.pass_percentage),published:!!e.is_published,description:"",
       questions:(e.questions||[]).sort(function(a,b){return a.sort_order-b.sort_order}).map(function(q){
         var opts=(q.question_options||[]).sort(function(a,b){return a.sort_order-b.sort_order});
         var image="";
