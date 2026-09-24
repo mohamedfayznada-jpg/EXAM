@@ -51,7 +51,7 @@
   var currentAttempt = null;
 
   function save() { localStorage.setItem(STORAGE, JSON.stringify(state)); }
-  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function esc(s) { var v=String(s == null ? "" : s); return v.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;").split("\'").join("&#39;"); }
   function icon(x) { return '<span class="ico">'+x+'</span>'; }
   function renderTop(userLabel) {
     return '<header class="topbar"><div class="brand">EXAM<span>.</span></div><div class="top-user">'+icon("●")+' '+esc(userLabel || "Assessment Platform")+'</div></header>';
