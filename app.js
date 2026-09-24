@@ -36,7 +36,7 @@ function fmt(s){s=Math.max(0,s);return Math.floor(s/60)+":"+String(s%60).padStar
 function top(name){return `<header class="topbar"><div class="brand">EXAM<span>.</span></div><div class="top-user">● ${esc(name||"Assessment Platform")}</div></header>`}
 function page(title,sub,body){return `<main class="container"><div class="page-head"><div><div class="eyebrow">EXAM PLATFORM</div><h1>${title}</h1><p class="muted">${sub||""}</p></div></div>${body}</main>`}
 function stop(){if(timer){clearInterval(timer);timer=null}}
-function landing(){
+function landingLegacy(){
  stop(); app.innerHTML=`<div class="landing"><div class="login-visual"><div class="visual-badge">SMART ASSESSMENT</div><h2>Evaluate knowledge.<br><span>Measure performance.</span></h2><p>One platform for exams, question banks, student results and analytics.</p></div><div class="login-panel card"><div class="brand">EXAM<span>.</span></div><h1>Student Assessment</h1><p class="muted">Enter your name to start.</p><label class="field"><span>Student name</span><input id="studentName" placeholder="e.g. Ahmed Mohamed"></label><button class="btn primary full" id="continue">Continue</button><button class="text-btn" id="admin">Admin login →</button><p class="login-note">Demo data is stored in this browser.</p></div></div>`;
  document.getElementById("continue").onclick=function(){var n=document.getElementById("studentName").value.trim();if(!n)return alert("Enter your name.");state.user={name:n,role:"student"};save();studentHome()};
  document.getElementById("admin").onclick=adminLogin;
@@ -66,7 +66,7 @@ function resultPage(a){app.innerHTML=top(state.user.name)+page(a.passed?"Congrat
 function reviewPage(a){var e=state.exams.find(function(x){return x.id===a.examId});var rows=e.questions.map(function(q,i){var ok=a.answers[i]===q.answer;return `<div class="review-row"><div class="review-status ${ok?"ok":"bad"}">${ok?"✓":"×"}</div><div><b>Question ${i+1}</b><p>${esc(q.text)}</p><small>Your answer: ${a.answers[i]===null?"Not answered":esc(q.options[a.answers[i]])}</small></div><span class="badge ${ok?"pass":"fail"}">${ok?"Correct":"Incorrect"}</span></div>`}).join("");app.innerHTML=top(state.user.name)+page("Answers Review","Review your answers.",`<div class="card review-list">${rows}</div><div class="center"><button class="btn primary" id="reviewBack">Back to Results</button></div>`);document.getElementById("reviewBack").onclick=function(){resultPage(a)}}
 function historyPage(){var mine=state.attempts.filter(function(a){return a.student===state.user.name}).slice().reverse();var rows=mine.map(function(a){return `<tr><td>${new Date(a.date).toLocaleDateString()}</td><td>${esc(a.exam)}</td><td><b>${a.pct}%</b></td><td><span class="badge ${a.passed?"pass":"fail"}">${a.passed?"Pass":"Fail"}</span></td><td>${fmt(a.timeTaken||0)}</td></tr>`}).join("");app.innerHTML=top(state.user.name)+studentNav()+page("My Exam History","Your completed assessments.",`<div class="table-wrap card"><table class="table"><thead><tr><th>Date</th><th>Exam</th><th>Score</th><th>Result</th><th>Time</th></tr></thead><tbody>${rows||"<tr><td colspan='5' class='muted'>No exams yet.</td></tr>"}</tbody></table></div>`);bindStudent()}
 function profilePage(){var mine=state.attempts.filter(function(a){return a.student===state.user.name});var avg=mine.length?Math.round(mine.reduce(function(s,a){return s+a.pct},0)/mine.length):0;app.innerHTML=top(state.user.name)+studentNav()+page("My Profile","Student account information.",`<div class="profile-card card"><div class="avatar">${esc(state.user.name.charAt(0).toUpperCase())}</div><h2>${esc(state.user.name)}</h2><p class="muted">Student</p><div class="profile-stats"><div><b>${mine.length}</b><span>Attempts</span></div><div><b>${avg}%</b><span>Average</span></div></div></div>`);bindStudent()}
-function adminLogin(){stop();app.innerHTML=`<div class="admin-login"><div class="admin-login-card card"><div class="brand">EXAM<span>.</span></div><div class="admin-mark">⚙</div><h1>Admin Panel</h1><p class="muted">Demo administrator access.</p><label class="field"><span>Email</span><input id="ae" value="admin@exam.com"></label><label class="field"><span>Password</span><input id="ap" type="password" value="admin"></label><button class="btn primary full" id="sign">Sign In</button><button class="text-btn" id="student">← Student view</button></div></div>`;document.getElementById("sign").onclick=function(){state.user={name:"Admin",role:"admin"};save();dashboard()};document.getElementById("student").onclick=landing}
+function adminLoginLegacy(){stop();app.innerHTML=`<div class="admin-login"><div class="admin-login-card card"><div class="brand">EXAM<span>.</span></div><div class="admin-mark">⚙</div><h1>Admin Panel</h1><p class="muted">Demo administrator access.</p><label class="field"><span>Email</span><input id="ae" value="admin@exam.com"></label><label class="field"><span>Password</span><input id="ap" type="password" value="admin"></label><button class="btn primary full" id="sign">Sign In</button><button class="text-btn" id="student">← Student view</button></div></div>`;document.getElementById("sign").onclick=function(){state.user={name:"Admin",role:"admin"};save();dashboard()};document.getElementById("student").onclick=landing}
 function side(active){var items=[["dashboard","▣","Dashboard"],["exams","▤","Exams"],["questions","☷","Questions"],["students","♙","Students"],["results","◔","Results"],["settings","⚙","Settings"]];return `<aside class="sidebar"><div class="side-brand">EXAM<span>.</span></div>${items.map(function(i){return `<button class="side-link ${active===i[0]?"active":""}" data-route="${i[0]}">${i[1]} ${i[2]}</button>`}).join("")}<button class="side-link logout" id="studentView">↩ Student view</button></aside>`}
 function adminShell(active,body){return `<div class="admin-layout">${side(active)}<section class="admin-main">${top("Admin")}${body}</section></div>`}
 function bindAdmin(){document.querySelectorAll("[data-route]").forEach(function(b){b.onclick=function(){route(b.dataset.route)}});document.getElementById("studentView").onclick=landing}
@@ -98,5 +98,154 @@ function questionsPage(){var rows=[];state.exams.forEach(function(e){e.questions
 function studentsPage(){var names={};state.attempts.forEach(function(a){names[a.student]=(names[a.student]||[]).concat(a)});var rows=Object.keys(names).map(function(n){var a=names[n],avg=Math.round(a.reduce(function(s,x){return s+x.pct},0)/a.length);return `<tr><td><b>${esc(n)}</b></td><td>${a.length}</td><td>${avg}%</td><td>Student</td></tr>`}).join("");app.innerHTML=adminShell("students",page("Students","Monitor student participation and performance.",`<div class="card table-card"><h3>Students</h3><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Attempts</th><th>Average</th><th>Role</th></tr></thead><tbody>${rows||"<tr><td colspan='4' class='muted'>No students yet.</td></tr>"}</tbody></table></div></div>`));bindAdmin()}
 function resultsPage(){var n=state.attempts.length,pass=n?Math.round(state.attempts.filter(function(a){return a.passed}).length/n*100):0,avg=n?Math.round(state.attempts.reduce(function(s,a){return s+a.pct},0)/n):0;app.innerHTML=adminShell("results",page("Results Analytics","Performance trends across all assessments.",`<div class="kpi-grid"><div class="kpi card"><span>Total Attempts</span><b>${n}</b></div><div class="kpi card"><span>Pass Rate</span><b>${pass}%</b></div><div class="kpi card"><span>Average Score</span><b>${avg}%</b></div></div><div class="card table-card"><h3>All Results</h3><div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Status</th></tr></thead><tbody>${state.attempts.slice().reverse().map(function(a){return `<tr><td>${esc(a.student)}</td><td>${esc(a.exam)}</td><td>${a.pct}%</td><td><span class="badge ${a.passed?"pass":"fail"}">${a.passed?"PASS":"FAIL"}</span></td></tr>`}).join("")}</tbody></table></div></div>`));bindAdmin()}
 function settingsPage(){app.innerHTML=adminShell("settings",page("Settings","Application preferences and access controls.",`<div class="settings-grid"><div class="card"><h3>General</h3><label class="field"><span>Platform Name</span><input value="EXAM." disabled></label><label class="field"><span>Default Passing Score</span><input value="60%" disabled></label></div><div class="card"><h3>Data</h3><p class="muted">Demo data is stored locally in this browser.</p><button class="btn danger" id="reset">Reset Demo Data</button></div></div>`));bindAdmin();document.getElementById("reset").onclick=function(){state.attempts=[];save();settingsPage()}}
-landing();
+var supabaseClient = null;
+try {
+  if (window.supabase && window.EXAM_SUPABASE_CONFIG && window.EXAM_SUPABASE_CONFIG.url && window.EXAM_SUPABASE_CONFIG.anonKey) {
+    supabaseClient = window.supabase.createClient(
+      window.EXAM_SUPABASE_CONFIG.url,
+      window.EXAM_SUPABASE_CONFIG.anonKey,
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+    );
+  }
+} catch (e) {
+  console.warn("Supabase initialization failed; demo mode remains available.", e);
+}
+
+async function cloudProfile(user){
+  if(!supabaseClient || !user) return null;
+  var r=await supabaseClient.from("profiles").select("id,full_name,role").eq("id",user.id).maybeSingle();
+  return r.data||null;
+}
+
+async function cloudLoadExams(){
+  if(!supabaseClient) return false;
+  var r=await supabaseClient.from("exams").select("id,title,category,duration_minutes,pass_percentage,questions(id,question_text,image_path,points,sort_order,question_options(id,option_text,sort_order))").eq("is_published",true).order("created_at",{ascending:true});
+  if(r.error){
+    console.warn("Cloud exams unavailable:",r.error);
+    return false;
+  }
+  if(!r.data || !r.data.length) return false;
+  state.exams=r.data.map(function(e){
+    return {
+      id:e.id,title:e.title,category:e.category,duration:Number(e.duration_minutes),
+      pass:Number(e.pass_percentage),description:"",
+      questions:(e.questions||[]).sort(function(a,b){return a.sort_order-b.sort_order}).map(function(q){
+        var opts=(q.question_options||[]).sort(function(a,b){return a.sort_order-b.sort_order});
+        var image="";
+        if(q.image_path && supabaseClient){
+          image=supabaseClient.storage.from("question-images").getPublicUrl(q.image_path).data.publicUrl;
+        }
+        return {id:q.id,text:q.question_text||"",image:image,options:opts.map(function(o){return o.option_text}),optionIds:opts.map(function(o){return o.id}),answer:null,topic:"General",points:Number(q.points||1)};
+      })
+    };
+  });
+  return true;
+}
+
+async function enterCloudApp(user){
+  var profile=await cloudProfile(user);
+  if(!profile){
+    var full=(user.user_metadata&&user.user_metadata.full_name)||user.email.split("@")[0];
+    var ins=await supabaseClient.from("profiles").insert({id:user.id,full_name:full,role:"student"}).select("id,full_name,role").single();
+    profile=ins.data||{id:user.id,full_name:full,role:"student"};
+  }
+  state.user={id:user.id,email:user.email,name:profile.full_name||user.email,role:profile.role||"student"};
+  save();
+  await cloudLoadExams();
+  if(state.user.role==="admin") dashboard(); else studentHome();
+}
+
+function authLanding(){
+  stop();
+  app.innerHTML=`<div class="landing">
+    <div class="login-visual">
+      <div class="visual-badge">SMART ASSESSMENT</div>
+      <h2>Evaluate knowledge.<br><span>Measure performance.</span></h2>
+      <p>Secure exams, question banks, student results and analytics powered by Supabase.</p>
+    </div>
+    <div class="login-panel card">
+      <div class="brand">EXAM<span>.</span></div>
+      <h1 id="authTitle">Student Login</h1>
+      <p class="muted" id="authSub">Sign in to continue to your assessments.</p>
+      <label class="field signup-only" style="display:none"><span>Full name</span><input id="authName" placeholder="e.g. Ahmed Mohamed"></label>
+      <label class="field"><span>Email</span><input id="authEmail" type="email" placeholder="student@example.com"></label>
+      <label class="field"><span>Password</span><input id="authPassword" type="password" placeholder="••••••••"></label>
+      <button class="btn primary full" id="authSubmit">Sign In</button>
+      <button class="text-btn" id="toggleSignup">Create student account</button>
+      <button class="text-btn" id="authAdmin">Admin login →</button>
+      <p class="login-note">Authentication and exam data are stored in Supabase.</p>
+    </div>
+  </div>`;
+  var signup=false;
+  function renderMode(){
+    document.getElementById("authTitle").textContent=signup?"Create Student Account":"Student Login";
+    document.getElementById("authSub").textContent=signup?"Create your account to access exams.":"Sign in to continue to your assessments.";
+    document.querySelector(".signup-only").style.display=signup?"block":"none";
+    document.getElementById("authSubmit").textContent=signup?"Create Account":"Sign In";
+    document.getElementById("toggleSignup").textContent=signup?"Already have an account? Sign in":"Create student account";
+  }
+  document.getElementById("toggleSignup").onclick=function(){signup=!signup;renderMode()};
+  document.getElementById("authAdmin").onclick=adminLogin;
+  document.getElementById("authSubmit").onclick=async function(){
+    var email=document.getElementById("authEmail").value.trim();
+    var password=document.getElementById("authPassword").value;
+    var name=document.getElementById("authName").value.trim();
+    if(!email||!password)return alert("Enter email and password.");
+    if(password.length<6)return alert("Password must be at least 6 characters.");
+    var r;
+    if(signup){
+      if(!name)return alert("Enter your full name.");
+      r=await supabaseClient.auth.signUp({email:email,password:password,options:{data:{full_name:name}}});
+      if(r.error)return alert(r.error.message);
+      if(r.data.session && r.data.user) await enterCloudApp(r.data.user);
+      else alert("Account created. Check your email to confirm the account, then sign in.");
+    }else{
+      r=await supabaseClient.auth.signInWithPassword({email:email,password:password});
+      if(r.error)return alert(r.error.message);
+      if(r.data.user) await enterCloudApp(r.data.user);
+    }
+  };
+}
+
+function landing(){ authLanding(); }
+
+function adminLogin(){
+  stop();
+  app.innerHTML=`<div class="admin-login"><div class="admin-login-card card">
+    <div class="brand">EXAM<span>.</span></div><div class="admin-mark">⚙</div>
+    <h1>Admin Panel</h1><p class="muted">Sign in with an authorized admin account.</p>
+    <label class="field"><span>Email</span><input id="ae" type="email" placeholder="admin@example.com"></label>
+    <label class="field"><span>Password</span><input id="ap" type="password" placeholder="••••••••"></label>
+    <button class="btn primary full" id="sign">Sign In</button>
+    <button class="text-btn" id="student">← Student login</button>
+  </div></div>`;
+  document.getElementById("sign").onclick=async function(){
+    var email=document.getElementById("ae").value.trim(),password=document.getElementById("ap").value;
+    if(!email||!password)return alert("Enter admin email and password.");
+    var r=await supabaseClient.auth.signInWithPassword({email:email,password:password});
+    if(r.error)return alert(r.error.message);
+    var profile=await cloudProfile(r.data.user);
+    if(!profile || profile.role!=="admin"){
+      await supabaseClient.auth.signOut();
+      return alert("This account is not authorized as an admin.");
+    }
+    await enterCloudApp(r.data.user);
+  };
+  document.getElementById("student").onclick=landing;
+}
+
+async function boot(){
+  if(!supabaseClient){ landing(); return; }
+  var r=await supabaseClient.auth.getSession();
+  if(r.data && r.data.session && r.data.session.user){
+    await enterCloudApp(r.data.session.user);
+  }else{
+    landing();
+  }
+  supabaseClient.auth.onAuthStateChange(function(event,session){
+    if(event==="SIGNED_OUT") landing();
+  });
+}
+
+boot();
 })();
