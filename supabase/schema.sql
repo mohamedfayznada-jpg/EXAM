@@ -381,3 +381,10 @@ revoke all on function public.admin_login(text,text) from public;
 grant execute on function public.admin_login(text,text) to anon, authenticated;
 revoke all on function public.admin_change_password(text,text) from public;
 grant execute on function public.admin_change_password(text,text) to authenticated;
+
+
+drop policy if exists "students update own profile" on public.profiles;
+create policy "students update own profile"
+on public.profiles for update to authenticated
+using (id = auth.uid() and role = 'student')
+with check (id = auth.uid() and role = 'student');
