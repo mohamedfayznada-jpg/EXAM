@@ -91,6 +91,11 @@ alter table public.attempt_answers enable row level security;
 drop policy if exists "profiles self read" on public.profiles;
 create policy "profiles self read" on public.profiles for select using (id = auth.uid() or public.is_admin());
 
+drop policy if exists "profiles self insert" on public.profiles;
+create policy "profiles self insert" on public.profiles
+for insert to authenticated
+with check (id = auth.uid() and role = 'student');
+
 drop policy if exists "admins manage exams" on public.exams;
 create policy "admins manage exams" on public.exams for all using (public.is_admin()) with check (public.is_admin());
 drop policy if exists "students read published exams" on public.exams;
