@@ -25,7 +25,7 @@ create table if not exists public.exams (
 create table if not exists public.questions (
   id uuid primary key default gen_random_uuid(),
   exam_id uuid not null references public.exams(id) on delete cascade,
-  question_text text not null,
+  question_text text,\n  image_path text,
   points numeric(8,2) not null default 1 check (points > 0),
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
@@ -129,3 +129,34 @@ with check (exists (select 1 from public.attempts a where a.id = attempt_id and 
 -- For production, do not expose is_correct to students through a direct query.
 -- Move scoring/submission into a trusted server-side function/Edge Function
 -- so students cannot inspect correct answers before submission.
+
+
+-- Storage for question images
+insert into storage.buckets (id, name, public)
+values ('question-images', 'question-images', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "admins upload question images" on storage.objects;
+create policy "admins upload question images"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'question-images' and public.is_admin());
+
+drop policy if exists "admins update question images" on storage.objects;
+create policy "admins update question images"
+on storage.objects for update
+to authenticated
+using (bucket_id = 'question-images' and public.is_admin())
+with check (bucket_id = 'question-images' and public.is_admin());
+
+drop policy if exists "admins delete question images" on storage.objects;
+create policy "admins delete question images"
+on storage.objects for delete
+to authenticated
+using (bucket_id = 'question-images' and public.is_admin());
+
+drop policy if exists "students view question images" on storage.objects;
+create policy "students view question images"
+on storage.objects for select
+to public
+using (bucket_id = 'question-images');
