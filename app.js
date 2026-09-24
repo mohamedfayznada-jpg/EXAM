@@ -1,5 +1,5 @@
-const KEY="exam_v1";
-const seed={user:null,exams:[
+var KEY="exam_v1";
+var seed={user:null,exams:[
 {id:"ENG-001",title:"Production Engineering Basics",category:"Engineering",duration:10,pass:60,questions:[
 {text:"What does MTBF measure?",options:["Repair duration","Average time between failures","Production quantity","Inspection time"],answer:1,points:10},
 {text:"What does MTTR primarily measure?",options:["Mean time to repair","Mean time to failure","Yield","Cycle time"],answer:0,points:10},
@@ -18,12 +18,12 @@ const seed={user:null,exams:[
 
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||seed}catch{return seed}}
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
-let state=load(),timer=null;
-const app=document.getElementById("app");
+var state=load(),timer=null;
+var app=document.getElementById("app");
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function top(){return '<header class="topbar"><div class="brand">EXAM<span>.</span></div><div class="muted">'+(state.user?esc(state.user.name):"Assessment Platform")+'</div></header>'}
 function login(){app.innerHTML='<div class="shell"><div class="login card"><div class="brand">EXAM<span>.</span></div><h1>Student Assessment</h1><p class="muted">Enter your name to start.</p><div class="field"><label>Student name</label><input id="name" placeholder="e.g. Ahmed Mohamed"></div><button class="btn primary" style="width:100%" onclick="startStudent()">Continue</button><p class="muted" style="font-size:12px;margin-top:18px">Demo MVP — data is stored locally in this browser.</p></div></div>'}
-function startStudent(){const n=document.getElementById("name").value.trim();if(!n)return alert("Enter your name.");state.user={name:n,role:"student"};save();studentHome()}
+function startStudent(){var n=document.getElementById("name").value.trim();if(!n)return alert("Enter your name.");state.user={name:n,role:"student"};save();studentHome()}
 function studentHome(){app.innerHTML=top()+'<main class="container"><div class="hero"><div><div class="eyebrow">Student portal</div><div class="h1">Choose an assessment</div><div class="muted">Select an exam and complete it before the timer expires.</div></div><button class="btn ghost" onclick="admin()">Admin view</button></div><div class="grid">'+state.exams.map(e=>'<div class="card"><div class="eyebrow">'+esc(e.category)+'</div><h2>'+esc(e.title)+'</h2><p class="muted">'+e.questions.length+' questions · '+e.duration+' min · Pass '+e.pass+'%</p><button class="btn primary" onclick="beginExam(\''+e.id+'\')">Start exam</button></div>').join("")+'</div></main>'}
 function beginExam(id){const e=state.exams.find(x=>x.id===id);let answers=Array(e.questions.length).fill(null),left=e.duration*60,index=0;
 function render(){const q=e.questions[index];app.innerHTML=top()+'<main class="container"><div class="exam-head"><div><div class="eyebrow">'+esc(e.category)+'</div><h1>'+esc(e.title)+'</h1><div class="progress"><div style="width:'+((index+1)/e.questions.length*100)+'%"></div></div></div><div class="timer" id="timer"></div></div><div class="card"><div class="qnum">Question '+(index+1)+' of '+e.questions.length+'</div><h2>'+esc(q.text)+'</h2>'+q.options.map((o,i)=>'<label class="option '+(answers[index]===i?'selected':'')+'"><input type="radio" name="opt" '+(answers[index]===i?'checked':'')+' onchange="window._ans='+i+'"> <span>'+esc(o)+'</span></label>').join("")+'</div><div class="row" style="margin-top:18px"><button class="btn ghost" onclick="prev()" '+(index===0?'disabled':'')+'>Previous</button><button class="btn primary" onclick="next()">'+(index===e.questions.length-1?'Submit':'Next')+'</button></div></main>';window._ans=answers[index];window.prev=()=>{answers[index]=window._ans;index--;render()};window.next=()=>{answers[index]=window._ans;window._answers=answers.slice();if(index===e.questions.length-1){finish()}else{index++;render()}};if(!timer)timer=setInterval(()=>{left--;const el=document.getElementById("timer");if(el)el.textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left<=0){clearInterval(timer);timer=null;finish()}},1000);const el=document.getElementById("timer");if(el)el.textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0")}
