@@ -298,3 +298,86 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+
+-- Simple username/password admin account used by the app's low-friction admin login.
+-- Student access remains anonymous; the browser session identifies the student.
+create table if not exists public.admin_accounts (
+  id boolean primary key default true check (id = true),
+  username text not null unique,
+  password_hash text not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.admin_accounts enable row level security;
+revoke all on public.admin_accounts from anon, authenticated;
+
+insert into public.admin_accounts (id, username, password_hash)
+values (true, 'eng.wael', crypt('12345', gen_salt('bf')))
+on conflict (id) do nothing;
+
+create or replace function public.admin_login(p_username text, p_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare v_ok boolean;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+
+  select exists(
+    select 1 from public.admin_accounts
+    where lower(username)=lower(trim(p_username))
+      and password_hash = crypt(p_password, password_hash)
+  ) into v_ok;
+
+  if not v_ok then
+    return jsonb_build_object('ok', false);
+  end if;
+
+  update public.profiles
+  set role='admin'
+  where id=auth.uid();
+
+  return jsonb_build_object('ok', true, 'role', 'admin');
+end;
+$$;
+
+create or replace function public.admin_change_password(p_current_password text, p_new_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare v_ok boolean;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not exists(select 1 from public.profiles where id=auth.uid() and role='admin') then
+    raise exception 'Admin access required';
+  end if;
+  if length(coalesce(p_new_password,'')) < 5 then
+    raise exception 'Password must be at least 5 characters';
+  end if;
+
+  select exists(
+    select 1 from public.admin_accounts
+    where lower(username)='eng.wael'
+      and password_hash = crypt(p_current_password, password_hash)
+  ) into v_ok;
+
+  if not v_ok then
+    return jsonb_build_object('ok', false);
+  end if;
+
+  update public.admin_accounts
+  set password_hash=crypt(p_new_password, gen_salt('bf')), updated_at=now()
+  where lower(username)='eng.wael';
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+revoke all on function public.admin_login(text,text) from public;
+grant execute on function public.admin_login(text,text) to anon, authenticated;
+revoke all on function public.admin_change_password(text,text) from public;
+grant execute on function public.admin_change_password(text,text) to authenticated;
