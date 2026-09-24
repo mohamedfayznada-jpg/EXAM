@@ -137,8 +137,6 @@
     document.getElementById("cancelSubmit").onclick=function(){wrap.remove();};
     document.getElementById("yesSubmit").onclick=function(){submitExam(false);};
   }
-    document.getElementById("yesSubmit").onclick=function(){submitExam(false);};
-  }
   function submitExam(auto){
     stopTimer();var e=currentExam,a=currentAttempt,score=0;
     e.questions.forEach(function(q,i){if(a.answers[i]===q.answer)score++;});
