@@ -26,4 +26,5 @@ function importData(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;v
 function boot(){load();if(state.user&&state.user.role==="admin")EXAM.dashboard();else if(state.user&&state.user.role==="student")EXAM.studentHome();else landing()}
 window.EXAM={state:state,app:app,save:save,load:load,esc:esc,uid:uid,fmt:fmt,stop:stop,top:top,page:page,exam:exam,att:att,studentName:studentName,studentNav:studentNav,bindStudent:bindStudent,landing:landing,adminLogin:adminLogin,adminShell:adminShell,bindAdmin:bindAdmin,exportData:exportData,importData:importData};
 window.EXAM.route=function(r){if(r==="dashboard")EXAM.dashboard();else if(r==="exams")EXAM.examsPage();else if(r==="questions")EXAM.questionsPage();else if(r==="students")EXAM.studentsPage();else if(r==="results")EXAM.resultsPage();else EXAM.settingsPage()};
+setTimeout(boot,0);
 })();
